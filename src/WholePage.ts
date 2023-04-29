@@ -1,4 +1,4 @@
-import { css, customElement, html, internalProperty, LitElement, TemplateResult }
+import { css, customElement, html, internalProperty, LitElement, PropertyValues, TemplateResult }
 	from "lit-element";
 import {defaultStyles} from './defaultStyles';
 import './components/RedDots';
@@ -10,6 +10,8 @@ type Data = {
 	randomLine: string;
 	summary: string;
 }
+
+const apiKey = "";
 
 @customElement('whole-page')
 /**
@@ -38,11 +40,15 @@ export class WholePage extends LitElement {
 				max-width: 80rem;
 			}
 
-			#seed, #style {
+			#seed, #style, #api-key {
 				color: black;
 				height: 100px;
 				font-size: 32px;
 				padding-left: 0.5rem;
+			}
+
+			#api-key {
+				flex: 1;
 			}
 			#seed {
 				flex-basis: 65%;
@@ -160,19 +166,30 @@ export class WholePage extends LitElement {
 	@internalProperty() _loading: boolean = false;
 	@internalProperty() _darkmode: boolean = false;
 
+	@internalProperty() _apiKey: string;
+	_openai: OpenAIApi;
+
 	_defaultIterations: string = "7";
 	_linesPerPoem: number = 8;
 
-	_openai: OpenAIApi;
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
-		const configuration = new Configuration({
-			apiKey: "",
-		});
-		this._openai = new OpenAIApi(configuration);
+		if (apiKey) {
+			this._apiKey = apiKey
+		}
 	}
+  
+	protected updated(change: PropertyValues): void {
+    super.updated(change);
+
+		if (change.has('_apiKey') && this._apiKey) {
+			const configuration = new Configuration({
+				apiKey: this._apiKey,
+			});
+			this._openai = new OpenAIApi(configuration);
+    }
+  }
 
 	/** Send message to chatgpt and return it's response */
 	async chat(chat: string): Promise<string> {
@@ -227,7 +244,7 @@ export class WholePage extends LitElement {
 		const requestForSummary = `Here is a poem \n ${poem} \nCan you summarize it and describe it in a single sentence?`;
 		let	summary = await this.chat(requestForSummary);
 		summary = summary.toLowerCase();
-
+		
 		const poemLines = poem.split('\n').filter(l => l.trim() !== "");
 		const random = Math.floor(Math.random() * poemLines.length);
 		let randomLine = poemLines[random];
@@ -245,6 +262,26 @@ export class WholePage extends LitElement {
 		if (ev.key === "Enter") {
 			this.createPoemsInLoop();
 		}
+	}
+
+	_onApiInputKeyPress(ev) {
+		if (ev.key === "Enter" && ev.target.value) {
+			this._apiKey = ev.target.value;
+		}
+	}
+
+	_onApiKeyStart() {
+		const apiKey = (this.shadowRoot!.getElementById("api-key") as HTMLInputElement).value.trim();
+		if (apiKey) {
+			this._apiKey = apiKey;
+		}
+	}
+
+	_renderApiKeyInput() {
+		return html`
+			<input type="text" placeholder="OpenAI-API-Key" id="api-key" @keyup=${this._onApiInputKeyPress}/>
+			<button class="go" @click=${this._onApiKeyStart}>START</button>
+		`;
 	}
 
 	_renderInputs() {
@@ -289,12 +326,9 @@ export class WholePage extends LitElement {
 	}
 
 	render() {
-		return html`
-			<red-dot-background
-				?darkmode=${this._darkmode}
-				@toggle-darkmode=${() => {this._darkmode = !this._darkmode;}}
-			></red-dot-background>
-			<div class="container ${this._darkmode ? "dark": "light"}">
+		let page;
+		if (this._apiKey) {
+			page = html`
 				${this._renderInputs()}
 				<div class="results">
 					<div class="res-2">
@@ -303,7 +337,18 @@ export class WholePage extends LitElement {
 				</div>
 				<div class="poem">
 					${this._renderPoem()}
-				</div>
+				</div>`; 
+		} else {
+			page = this._renderApiKeyInput()
+		}
+
+		return html`
+			<red-dot-background
+				?darkmode=${this._darkmode}
+				@toggle-darkmode=${() => {this._darkmode = !this._darkmode;}}
+			></red-dot-background>
+			<div class="container ${this._darkmode ? "dark": "light"}">
+				${page}
 			</div>
 		`;
 	}

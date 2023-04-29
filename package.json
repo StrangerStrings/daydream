@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:dev": "webpack --mode development",
-    "start": "webpack serve --mode development --open chrome --port 8182"
+    "start": "webpack serve --mode development --open chrome --port 8183"
   },
   "keywords": [
     "Lit",
