@@ -2,6 +2,7 @@ import { css, customElement, html, internalProperty, LitElement, PropertyValues,
 	from "lit-element";
 import {defaultStyles} from './defaultStyles';
 import './components/DottyBackground';
+import 'lit-toast/lit-toast.js';
 
 import { Configuration, OpenAIApi } from "openai";
 
@@ -9,6 +10,10 @@ type Data = {
 	poem: string[];
 	randomLine: string;
 	summary: string;
+}
+
+interface ListToast extends Element {
+	show(message: string, time: number): Promise<void>;
 }
 
 const apiKey = "";
@@ -148,6 +153,12 @@ export class WholePage extends LitElement {
 				}
 			}
 
+			lit-toast {
+				--lt-color: #ffffff;
+				padding: 16px;
+				--lt-border-radius: 15px;
+			}
+
 		`
 	];
 
@@ -222,9 +233,16 @@ export class WholePage extends LitElement {
 		iterations = iterations < 50 ? iterations : 1;
 
 		do {
-			const data = await this.getSeedAndCreatePoemAndWords(seed, style);
-			this._data = [...this._data, data];
-			seed = data.randomLine;
+			try {
+				const data = await this.getSeedAndCreatePoemAndWords(seed, style);
+				this._data = [...this._data, data];
+				seed = data.randomLine;
+			} catch (error) {
+				const toast = this.shadowRoot.querySelector<ListToast>('lit-toast');
+				toast.show(`ChatGpt call failed: ${error.message}`, 4000);
+				
+				this._loading = false;
+			}
 
 		} while (this._loading && this._data.length < iterations);
 
@@ -232,8 +250,8 @@ export class WholePage extends LitElement {
 	}
 
 	async getSeedAndCreatePoemAndWords(seed: string, style?: string): Promise<Data> {
-		let requestForPoem = `Can you please write me a ${this._linesPerPoem} line poem about ${seed}.`;
-		if (style) {
+	let requestForPoem = `Can you please write me a ${this._linesPerPoem} line poem about ${seed}.`;
+	if (style) {
 			requestForPoem += ` In the style of ${style}.`;
 		}
 		if (this._darkmode) {
@@ -349,6 +367,7 @@ export class WholePage extends LitElement {
 			<div class="container ${this._darkmode ? "dark": "light"}">
 				${page}
 			</div>
+			<lit-toast></lit-toast>
 		`;
 	}
 }

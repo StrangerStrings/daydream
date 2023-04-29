@@ -28,6 +28,7 @@
     "chatgpt": "^5.2.2",
     "firebase": "^9.21.0",
     "lit-element": "^2.4.0",
+    "lit-toast": "^1.5.1",
     "openai": "^3.2.1"
   }
 }
