@@ -4,13 +4,7 @@ import {defaultStyles} from './defaultStyles';
 import './components/DottyBackground';
 import 'lit-toast/lit-toast.js';
 
-import { Configuration, OpenAIApi } from "openai";
-
-type Data = {
-	poem: string[];
-	randomLine: string;
-	summary: string;
-}
+import { ChatGpt, PoemData } from "./ChatGpt";
 
 interface ListToast extends Element {
 	show(message: string, time: number): Promise<void>;
@@ -163,7 +157,7 @@ export class WholePage extends LitElement {
 	];
 
 
-	@internalProperty() _data: Data[] = 
+	@internalProperty() _data: PoemData[] = 
 	Array(0).fill(
 		{
 			summary: "words to describe it nicely",
@@ -178,121 +172,78 @@ export class WholePage extends LitElement {
 	@internalProperty() _loading: boolean = false;
 	@internalProperty() _darkmode: boolean = false;
 
-	@internalProperty() _apiKey: string;
-	_openai: OpenAIApi;
+	@internalProperty() _chatGpt?: ChatGpt;
 
-	_defaultIterations: string = "7";
-	_linesPerPoem: number = 8;
-
+	_defaultIterations: number = 7;
 
 	connectedCallback(): void {
 		super.connectedCallback();
+		//todoo: turn into .env var
 		if (apiKey) {
-			this._apiKey = apiKey
+			this._chatGpt = new ChatGpt(apiKey);
 		}
 	}
   
-	protected updated(change: PropertyValues): void {
-    super.updated(change);
-
-		if (change.has('_apiKey') && this._apiKey) {
-			const configuration = new Configuration({
-				apiKey: this._apiKey,
-			});
-			this._openai = new OpenAIApi(configuration);
-    }
-  }
-
-	/** Send message to chatgpt and return it's response */
-	async chat(chat: string): Promise<string> {
-		const response = await this._openai.createChatCompletion({
-			model: "gpt-3.5-turbo",
-			messages: [{role: "user", content: chat}],
-		});
-		return response.data.choices[0].message.content;
-	} 
-
-	async createPoemsInLoop() {
+	async _createPoems() {
 		if (this._loading) {
 			this._loading = false;
 			return;
 		}
 
+		this._loading = true;
 		this._data = [];
 		this._poemToDisplay = undefined;
-
-		this._loading = true;
 
 		let seed = (this.shadowRoot!.getElementById("seed") as HTMLInputElement).value;
 		let style = (this.shadowRoot!.getElementById("style") as HTMLInputElement).value.trim();
 		let iterations = Number((this.shadowRoot!.getElementById("iterations") as HTMLInputElement).value);
+		iterations = iterations < 50 ? iterations : 1;
 		
 		if (!seed) {
+			this._loading = false;
 			return;
 		}
-		iterations = iterations < 50 ? iterations : 1;
 
-		do {
-			try {
-				const data = await this.getSeedAndCreatePoemAndWords(seed, style);
-				this._data = [...this._data, data];
-				seed = data.randomLine;
-			} catch (error) {
-				const toast = this.shadowRoot.querySelector<ListToast>('lit-toast');
-				toast.show(`ChatGpt call failed: ${error.message}`, 4000);
-				
-				this._loading = false;
-			}
-
-		} while (this._loading && this._data.length < iterations);
-
+		try {
+			await this._createPoemsLoop(seed, style, iterations);
+		} catch (error) {
+			const toast = this.shadowRoot.querySelector<ListToast>('lit-toast');
+			toast.show(`ChatGpt call failed: ${error.message}`, 4000);
+		}
 		this._loading = false;
 	}
 
-	async getSeedAndCreatePoemAndWords(seed: string, style?: string): Promise<Data> {
-	let requestForPoem = `Can you please write me a ${this._linesPerPoem} line poem about ${seed}.`;
-	if (style) {
-			requestForPoem += ` In the style of ${style}.`;
-		}
-		if (this._darkmode) {
-			requestForPoem += ` Make it dark.`;
-		}
-		const poem = await this.chat(requestForPoem);
-		console.log(poem);
+	async _createPoemsLoop(seed: string, style: string, iterations: number) {
+		do {
+			const data = await this._chatGpt.getSeedAndCreatePoemAndWords(seed, style, this._darkmode);
+			this._data = [...this._data, data];
+			seed = data.randomLine;
 
-		const requestForSummary = `Here is a poem \n ${poem} \nCan you summarize it and describe it in a single sentence?`;
-		let	summary = await this.chat(requestForSummary);
-		summary = summary.toLowerCase();
-		
-		const poemLines = poem.split('\n').filter(l => l.trim() !== "");
-		const random = Math.floor(Math.random() * poemLines.length);
-		let randomLine = poemLines[random];
-
-		return {
-			poem: poemLines, summary, randomLine
-		};
+		} while (this._loading && this._data.length < iterations);
 	}
 
-	_onViewPoem(ev) {
-		this._poemToDisplay = Number(ev.target.id);
+	_onViewPoem(ev: MouseEvent) {
+		const element = ev.target as HTMLElement
+		this._poemToDisplay = Number(element.id);
 	}
 
-	_onInputKeyPress(ev) {
+	_onInputKeyPress(ev: KeyboardEvent) {
 		if (ev.key === "Enter") {
-			this.createPoemsInLoop();
+			this._createPoems();
 		}
 	}
 
 	_onApiInputKeyPress(ev) {
-		if (ev.key === "Enter" && ev.target.value) {
-			this._apiKey = ev.target.value;
+		const apiKey = (this.shadowRoot!.getElementById("api-key") as HTMLInputElement).value.trim();
+		if (ev.key === "Enter" && apiKey) {
+			this._chatGpt = new ChatGpt(apiKey);
 		}
 	}
 
 	_onApiKeyStart() {
 		const apiKey = (this.shadowRoot!.getElementById("api-key") as HTMLInputElement).value.trim();
 		if (apiKey) {
-			this._apiKey = apiKey;
+			this._chatGpt = new ChatGpt(apiKey);
 		}
 	}
 
@@ -310,9 +261,9 @@ export class WholePage extends LitElement {
 			<input type="text" placeholder="Subject" ?disabled=${this._loading} id="seed" @keyup=${this._onInputKeyPress}/>
 			<input type="text" placeholder="Style (optional)" ?disabled=${this._loading} id="style" @keyup=${this._onInputKeyPress}/>
 			<span class="text1">set off a chain reaction of random but related generation\n consisting of</span>
-			<input type="number" id="iterations" ?disabled=${this._loading} value=${this._defaultIterations} >
+			<input type="number" id="iterations" ?disabled=${this._loading} value=${this._defaultIterations.toString()} >
 			<span class="text2">Poems</span>
-			<button class="go" @click=${this.createPoemsInLoop}>${buttonText}</button>`;
+			<button class="go" @click=${this._createPoems}>${buttonText}</button>`;
 	}
 
 	_renderSummaries() {
@@ -346,7 +297,7 @@ export class WholePage extends LitElement {
 
 	render() {
 		let page: TemplateResult;
-		if (this._apiKey) {
+		if (this._chatGpt) {
 			page = html`
 				${this._renderInputs()}
 				<div class="results">
