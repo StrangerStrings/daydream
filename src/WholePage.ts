@@ -1,4 +1,4 @@
-import { css, customElement, html, internalProperty, LitElement, property, TemplateResult }
+import { css, customElement, html, internalProperty, LitElement, TemplateResult }
 	from "lit-element";
 import {defaultStyles} from './defaultStyles';
 import './components/RedDots';
@@ -6,10 +6,9 @@ import './components/RedDots';
 import { Configuration, OpenAIApi } from "openai";
 
 type Data = {
-	words: string;
-	// seed: string;
 	poem: string[];
 	randomLine: string;
+	summary: string;
 }
 
 @customElement('whole-page')
@@ -146,29 +145,28 @@ export class WholePage extends LitElement {
 	];
 
 
-@internalProperty() _data: Data[] = 
-Array(0).fill(
-	{
-		words: "words to describe",
-		seed: "seed",
-		poem: ["poem", "poem", "poem", "poem", "poem", "poem", "poem", "poem"],
-	}
-);
+	@internalProperty() _data: Data[] = 
+	Array(0).fill(
+		{
+			words: "words to describe",
+			seed: "seed",
+			poem: ["poem line 1", "poem line 2", "poem line 3", "poem line 4", 
+				"poem ", "poem", "poem", "poem"],
+		}
+	);
 
+	/** Index of poem to display in full */
+	@internalProperty() _poemToDisplay?: number;
+	@internalProperty() _loading: boolean = false;
+	@internalProperty() _darkmode: boolean = false;
 
-@internalProperty() _chosen?: number;
-
-@internalProperty() _loading: boolean = false;
-
-@internalProperty() _darkmode: boolean = false;
+	_defaultIterations: string = "7";
+	_linesPerPoem: number = 8;
 
 	_openai: OpenAIApi;
-	_lines: number = 8;
-	_defaultIterations: string = "7";
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 
 		const configuration = new Configuration({
 			apiKey: "",
@@ -176,14 +174,23 @@ Array(0).fill(
 		this._openai = new OpenAIApi(configuration);
 	}
 
-	async CreatePoemsInLoop() {
+	/** Send message to chatgpt and return it's response */
+	async chat(chat: string): Promise<string> {
+		const response = await this._openai.createChatCompletion({
+			model: "gpt-3.5-turbo",
+			messages: [{role: "user", content: chat}],
+		});
+		return response.data.choices[0].message.content;
+	} 
+
+	async createPoemsInLoop() {
 		if (this._loading) {
 			this._loading = false;
 			return;
 		}
 
 		this._data = [];
-		this._chosen = undefined;
+		this._poemToDisplay = undefined;
 
 		this._loading = true;
 
@@ -206,16 +213,8 @@ Array(0).fill(
 		this._loading = false;
 	}
 
-	async chat(chat: string): Promise<string> {
-		const response = await this._openai.createChatCompletion({
-			model: "gpt-3.5-turbo",
-			messages: [{role: "user", content: chat}],
-		});
-		return response.data.choices[0].message.content;
-	} 
-
 	async getSeedAndCreatePoemAndWords(seed: string, style?: string): Promise<Data> {
-		let requestForPoem = `Can you please write me a ${this._lines} line poem about ${seed}.`;
+		let requestForPoem = `Can you please write me a ${this._linesPerPoem} line poem about ${seed}.`;
 		if (style) {
 			requestForPoem += ` In the style of ${style}.`;
 		}
@@ -226,29 +225,48 @@ Array(0).fill(
 		console.log(poem);
 
 		const requestForSummary = `Here is a poem \n ${poem} \nCan you summarize it and describe it in a single sentence?`;
-		let	description = await this.chat(requestForSummary);
-		description = description.toLowerCase();
+		let	summary = await this.chat(requestForSummary);
+		summary = summary.toLowerCase();
 
 		const poemLines = poem.split('\n').filter(l => l.trim() !== "");
 		const random = Math.floor(Math.random() * poemLines.length);
 		let randomLine = poemLines[random];
 
 		return {
-			poem: poemLines, words: description, randomLine
+			poem: poemLines, summary, randomLine
 		};
 	}
 
-	_viewPoem(ev) {
-		this._chosen = Number(ev.target.id);
+	_onViewPoem(ev) {
+		this._poemToDisplay = Number(ev.target.id);
 	}
-	_renderResults() {
+
+	_onInputKeyPress(ev) {
+		if (ev.key === "Enter") {
+			this.createPoemsInLoop();
+		}
+	}
+
+	_renderInputs() {
+		const buttonText = this._loading ? "HALT" : "GEN";
+
+		return html`
+			<input type="text" placeholder="Subject" ?disabled=${this._loading} id="seed" @keyup=${this._onInputKeyPress}/>
+			<input type="text" placeholder="Style (optional)" ?disabled=${this._loading} id="style" @keyup=${this._onInputKeyPress}/>
+			<span class="text1">set off a chain reaction of random but related generation\n consisting of</span>
+			<input type="number" id="iterations" ?disabled=${this._loading} value=${this._defaultIterations} >
+			<span class="text2">Poems</span>
+			<button class="go" @click=${this.createPoemsInLoop}>${buttonText}</button>`;
+	}
+
+	_renderSummaries() {
 		const results = this._data.map((res, i) => 
 			html`	
 				<div class="result" 
-					?selected=${this._chosen === i}
+					?selected=${this._poemToDisplay === i}
 					id=${i}
-					@click=${this._viewPoem}>
-					${res.words}
+					@click=${this._onViewPoem}>
+					${res.summary}
 				</div>
 			`);
 
@@ -259,46 +277,32 @@ Array(0).fill(
 		return [results, loading];
 	}
 
-	_enterMaybe(ev) {
-		// this._darkmode = !this._darkmode;
-		if (ev.key === "Enter") {
-			this.CreatePoemsInLoop();
+	_renderPoem() {
+		if (this._poemToDisplay == undefined) {
+			return;
 		}
+		const poemData = this._data[this._poemToDisplay];
+
+		return poemData.poem.map(line => html`
+			<p ?bold=${poemData.randomLine == line}>${line}</p>
+		`);
 	}
 
 	render() {
-		const buttonText = this._loading ? "HALT" : "GEN";
-		const a = this._data[0]
-
-		let poemLines: TemplateResult[] = [];
-		if (this._chosen !== undefined) {
-			const data = this._data[this._chosen];
-			poemLines = data.poem.map(line => html`
-				<p ?bold=${data.randomLine == line}>${line}</p>
-			`);
-		}
-
 		return html`
 			<red-dot-background
-				@darkmode=${() => {
-					this._darkmode = !this._darkmode;
-				}}
 				?darkmode=${this._darkmode}
+				@toggle-darkmode=${() => {this._darkmode = !this._darkmode;}}
 			></red-dot-background>
 			<div class="container ${this._darkmode ? "dark": "light"}">
-				<input type="text" placeholder="Subject" ?disabled=${this._loading} id="seed" @keyup=${this._enterMaybe}/>
-				<input type="text" placeholder="Style (optional)" ?disabled=${this._loading} id="style" @keyup=${this._enterMaybe}/>
-				<span class="text1">set off a chain reaction of random but related generation\n consisting of</span>
-				<input type="number" id="iterations" ?disabled=${this._loading} value=${this._defaultIterations} >
-				<span class="text2">Poems</span>
-				<button class="go" @click=${this.CreatePoemsInLoop}>${buttonText}</button>
+				${this._renderInputs()}
 				<div class="results">
 					<div class="res-2">
-						${this._renderResults()}
+						${this._renderSummaries()}
 					</div>
 				</div>
 				<div class="poem">
-					${poemLines}
+					${this._renderPoem()}
 				</div>
 			</div>
 		`;

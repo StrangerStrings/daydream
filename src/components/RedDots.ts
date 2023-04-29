@@ -136,7 +136,7 @@ export class RedDots extends LitElement{
 	}
 
   _onClick() {
-    this.dispatchEvent(new CustomEvent('darkmode'));
+    this.dispatchEvent(new CustomEvent('toggle-darkmode'));
   }
 
 
