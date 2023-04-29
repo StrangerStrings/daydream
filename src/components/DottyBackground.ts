@@ -3,20 +3,17 @@ import { defaultStyles } from "../defaultStyles";
 
 import { styleMap } from 'lit-html/directives/style-map';
 
-
-
 type Circle = {
 	x: number,
 	y: number,
 	r: number
-	,band?: number
 }
 
 /**
  * Just one configurable component for use and reuse
  */
-@customElement("red-dot-background")
-export class RedDots extends LitElement{
+@customElement("dotty-background")
+export class DottyBackground extends LitElement{
 	static styles = [
 		defaultStyles,
 		css`
@@ -69,7 +66,7 @@ export class RedDots extends LitElement{
 		this.createCircles();
 	}
 
-	async createCircles() {
+	createCircles() {
 		const circles = [];
 		const maxPlacementAttempts = 10000;
 		const screenWidth = window.innerWidth;
@@ -79,54 +76,40 @@ export class RedDots extends LitElement{
 		let success = 1;
 
 		for (let i = 0; i < maxPlacementAttempts; i++) {
-			// const circle = this._myFunction(circleSize)
-
 			const circle: Circle = {
 				x: Math.random() * screenWidth,
 				y: Math.random() * screenHeight,
-				// x: (Math.random() * screenWidth * .8) + (.1 * screenWidth),
-				// y: (Math.random() * screenHeight * .8) + (.1 * screenHeight),
 				r: circleSize
 			};
 
-			if (this.isInterseting(circle, circles)) {
+			if (this._isInterseting(circle, circles)) {
 				success *= 0.99999;
 			} else {
 				success *= (success * 1.05) + 0;
 				circles.push(circle); 
-				console.log(circles.length);
-				
 			}
-
-			// console.log(success);
 			
 			circleSize *= success;
 
 			if (circleSize < 0.00001) {
 				break;
 			}
-
-			// if (i % 2000 === 0) {
-			// 	await delay(.00001)
-			// }
 		}
 
 		this.circles = [...circles];
 	}
 
-
-
-	isInterseting (circle: Circle, circles: Circle[]) {
+	_isInterseting (circle: Circle, circles: Circle[]): boolean {
 		for (let i = 0; i < circles.length; i++) {
-			const circlea = circles[i];
-			const isIntersecting = this.twocircles(circlea, circle);
-			if (isIntersecting) {
+			const otherCircle = circles[i];
+			if(this._twoCirclesIntersect(circle, otherCircle)) {
 				return true;
 			}
 		}
+		return false;
 	}
 
-	twocircles (circle1, circle2): boolean {
+	_twoCirclesIntersect (circle1: Circle, circle2: Circle): boolean {
 		const dx = circle1.x - circle2.x;
 		const dy = circle1.y - circle2.y;
 		const distance = Math.sqrt((dx * 1.9*dx) + (dy*1.9 * dy));
@@ -139,11 +122,9 @@ export class RedDots extends LitElement{
     this.dispatchEvent(new CustomEvent('toggle-darkmode'));
   }
 
-
 	render() {
-		const circlesHtml = this.circles.map((circle) => {
-
-			return html`
+		const circlesHtml = this.circles.map((circle) => 
+			html`
 				<div 
 					style=${styleMap({
 						left: `${circle.x}px`,
@@ -151,17 +132,12 @@ export class RedDots extends LitElement{
 						width: `${circle.r * 1.5}px`,
 						height: `${circle.r * 1.5}px`,
 					})} 
-					class="circle band-${circle.band}"
+					class="circle"
           @click=${this._onClick}
-				></div>
-			`;
-		});
+				></div>`);
 
     return html`<div class="container ${this.darkmode ? "dark": "light"}">
       ${circlesHtml}
     </div>`
-
-
 	}
-
 }

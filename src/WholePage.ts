@@ -1,7 +1,7 @@
 import { css, customElement, html, internalProperty, LitElement, PropertyValues, TemplateResult }
 	from "lit-element";
 import {defaultStyles} from './defaultStyles';
-import './components/RedDots';
+import './components/DottyBackground';
 
 import { Configuration, OpenAIApi } from "openai";
 
@@ -87,6 +87,7 @@ export class WholePage extends LitElement {
 			.poem, .results {
 				margin: 30px 0px 0;
 			}
+
 			.poem {
 				flex-basis: 38%;
 				padding: 5px 25px;
@@ -154,8 +155,8 @@ export class WholePage extends LitElement {
 	@internalProperty() _data: Data[] = 
 	Array(0).fill(
 		{
-			words: "words to describe",
-			seed: "seed",
+			summary: "words to describe it nicely",
+			randomLine: "poem line 3",
 			poem: ["poem line 1", "poem line 2", "poem line 3", "poem line 4", 
 				"poem ", "poem", "poem", "poem"],
 		}
@@ -326,14 +327,12 @@ export class WholePage extends LitElement {
 	}
 
 	render() {
-		let page;
+		let page: TemplateResult;
 		if (this._apiKey) {
 			page = html`
 				${this._renderInputs()}
 				<div class="results">
-					<div class="res-2">
 						${this._renderSummaries()}
-					</div>
 				</div>
 				<div class="poem">
 					${this._renderPoem()}
@@ -343,10 +342,10 @@ export class WholePage extends LitElement {
 		}
 
 		return html`
-			<red-dot-background
+			<dotty-background
 				?darkmode=${this._darkmode}
 				@toggle-darkmode=${() => {this._darkmode = !this._darkmode;}}
-			></red-dot-background>
+			></dotty-background>
 			<div class="container ${this._darkmode ? "dark": "light"}">
 				${page}
 			</div>
