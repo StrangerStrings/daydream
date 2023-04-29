@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:dev": "webpack --mode development",
+    "build:watch": "webpack --mode development --watch",
     "start": "webpack serve --mode development --open chrome --port 8183"
   },
   "keywords": [
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "chatgpt": "^5.2.2",
+    "firebase": "^9.21.0",
     "lit-element": "^2.4.0",
     "openai": "^3.2.1"
   }
