@@ -1,6 +1,7 @@
 import { css, customElement, html, internalProperty, LitElement, property, TemplateResult } from "lit-element";
-import { defaultStyles } from "../defaultStyles";
-import { inputStyles } from "../inputStyles";
+import { defaultStyles } from "../styles/defaultStyles";
+import { inputStyles } from "../styles/inputStyles";
+import { darkStyles } from "../styles/darkStyles";
 import { PoemData } from "../ChatGpt";
 
 export type PoemConfig = {
@@ -10,12 +11,14 @@ export type PoemConfig = {
 	darkmode?: boolean;
 }
 
-/** For viewing the poem summaries and selecting and viewing an associated poem */
+/** For viewing the poem summaries 
+ * and selecting and viewing an associated poem */
 @customElement("view-poems")
 export class ViewPoems extends LitElement{
 	static styles = [
 		defaultStyles,
 		inputStyles,
+		darkStyles,
 		css`
       :host {
         display: flex;
@@ -67,10 +70,6 @@ export class ViewPoems extends LitElement{
 				animation: loading 4s infinite linear
 			}
 
-			.dark .loading {
-				background-color: #7c0000;
-			}
-
 			@keyframes loading {
 				0% {
 					transform: rotate(0deg);
@@ -84,7 +83,7 @@ export class ViewPoems extends LitElement{
 
 	@property({type: Array}) poems: PoemData[] = [];
 	@property({type: Boolean}) darkmode: boolean = false;
-	@property({type: Boolean}) loading: boolean = true;
+	@property({type: Boolean}) loading: boolean = false;
   
   /** Index of poem to display in full */
 	@internalProperty() _poemToDisplay?: number;
@@ -97,12 +96,13 @@ export class ViewPoems extends LitElement{
 	render() {
     const summaries = this.poems.map((res, i) => 
 			html`	
-				<div class="summary" 
+				<p class="summary" 
 					?selected=${this._poemToDisplay === i}
 					data-idx=${i}
 					@click=${this._onViewPoem}>
 					${res.summary}
-				</div>`);
+				</p>`
+		);
 
 		const loading = this.loading ? 
       html`<div class="loading"></div>` 

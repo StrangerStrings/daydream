@@ -1,17 +1,18 @@
-import { css, customElement, html, internalProperty, LitElement }
-	from "lit-element";
-import {defaultStyles} from './defaultStyles';
+import { css, customElement, html, internalProperty, LitElement } from "lit-element";
+import { classMap } from 'lit-html/directives/class-map';
+import 'lit-toast/lit-toast.js';
+
+import { defaultStyles } from './styles/defaultStyles';
+import { inputStyles } from "./styles/inputStyles";
+import { ChatGpt, PoemData } from "./ChatGpt";
+import { PoemConfig } from "./components/PoemsConfig";
+
 import './components/DottyBackground';
 import './components/ApiKeyInput';
 import './components/PoemsConfig';
 import './components/ViewPoems';
-import 'lit-toast/lit-toast.js';
 
-import { ChatGpt, PoemData } from "./ChatGpt";
-import { inputStyles } from "./inputStyles";
-import { PoemConfig } from "./components/PoemsConfig";
-
-interface ListToast extends Element {
+interface LitToast extends Element {
 	show(message: string, time: number): Promise<void>;
 }
 
@@ -50,7 +51,7 @@ export class WholePage extends LitElement {
 
 	@internalProperty() _poems: PoemData[] = 
 	//mock data for testing, increase x in Array(x) to populate
-	Array(10).fill(
+	Array(0).fill(
 		{
 			summary: "words to describe it nicely",
 			randomLine: "poem line 3",
@@ -67,6 +68,7 @@ export class WholePage extends LitElement {
 		this._chatGpt = new ChatGpt(ev.detail);
 	}
   
+	/** Create poems using ChatGpt */
 	async _createPoems(ev: CustomEvent<PoemConfig>) {
 		this._loading = true;
 		this._poems = [];
@@ -78,7 +80,7 @@ export class WholePage extends LitElement {
 		try {
 			await this._createPoemsLoop(seed, style, iterations);
 		} catch (error) {
-			const toast = this.shadowRoot.querySelector<ListToast>('lit-toast');
+			const toast = this.shadowRoot.querySelector<LitToast>('lit-toast');
 			toast.show(`ChatGpt call failed: ${error.message}`, 4000);
 		}
 		this._loading = false;
@@ -88,8 +90,8 @@ export class WholePage extends LitElement {
 		do {
 			const data = await this._chatGpt.getSeedAndCreatePoemAndWords(seed, style, this._darkmode);
 			this._poems = [...this._poems, data];
+			
 			seed = data.randomLine;
-
 		} while (this._loading && this._poems.length < iterations);
 	}
 
@@ -103,30 +105,33 @@ export class WholePage extends LitElement {
 	 * otherwise render generation options and once loaded, the poems
 	 */
 	render() {
+		const darkmode = classMap({'dark': this._darkmode})
+
 		const content = this._chatGpt ? 
 			html`
 				<poems-config 
 					@start=${this._createPoems} 
 					@stop=${this._stop}
 					?loading=${this._loading}
-					?darkmode=${this._darkmode}>
+					class=${darkmode}>
 				</poems-config>
 				<view-poems 
 					.poems=${this._poems} 
 					?loading=${this._loading} 
-					?darkmode=${this._darkmode}>
+					class=${darkmode}>
 				</view-poems>`:
 			html`
 				<api-key-input 
-					@new-api-key=${this._initiliseChatGpt}>
+					@new-api-key=${this._initiliseChatGpt}
+					class=${darkmode}>
 				</api-key-input>`;
 
 		return html`
 			<dotty-background
 				@toggle-darkmode=${() => {this._darkmode = !this._darkmode;}}
-				?darkmode=${this._darkmode}>
+				class=${darkmode}>
 			</dotty-background>
-			<div class="container ${this._darkmode ? "dark": "light"}">
+			<div class="container">
 				${content}
 			</div>
 			<lit-toast></lit-toast>

@@ -1,7 +1,7 @@
-import { css, customElement, html, internalProperty, LitElement, property } from "lit-element";
-import { defaultStyles } from "../defaultStyles";
-
+import { css, customElement, html, internalProperty, LitElement } from "lit-element";
 import { styleMap } from 'lit-html/directives/style-map';
+import { defaultStyles } from "../styles/defaultStyles";
+import { darkStyles } from "../styles/darkStyles";
 
 type Circle = {
 	x: number,
@@ -10,56 +10,33 @@ type Circle = {
 }
 
 /**
- * Just one configurable component for use and reuse
+ * An experiment with circles that didn't quite work out so i thought i'd use it for a background
+ * Sorry about confusing bits.
  */
 @customElement("dotty-background")
 export class DottyBackground extends LitElement{
 	static styles = [
 		defaultStyles,
+		darkStyles,
 		css`
-     .container {
+			.dot-container {
 				height: 100%;
 				padding: 40px;
 				position: relative;
 				overflow: hidden;
-     }
-
-     .light {
-        background: white;
-     }
-
-     .dark {
-        background: black;
-     }
-
-
-			.container > * {
-				position: absolute;
-				height: 100%;
-				width: 100%;
 			}
 
 			.circle {
 				border-radius: 50%;
 				position: absolute;	
-				transition: background .15s ease;
 				transform: translate(-30%, -30%);
+				background: #b7d1ff;
+				background: #bfd5ff;
 			}
-
-      .light .circle {
-        background: #b7d1ff;
-      }
-
-      .dark .circle {
-        background: red;
-      }
 		`
 	];
 
-
 	@internalProperty() circles: Circle[] = [];
-
-	@property({type: Boolean}) darkmode: boolean = false;
 
 	connectedCallback(): void {
 		super.connectedCallback();
@@ -126,18 +103,19 @@ export class DottyBackground extends LitElement{
 		const circlesHtml = this.circles.map((circle) => 
 			html`
 				<div 
+					class="circle"
 					style=${styleMap({
 						left: `${circle.x}px`,
 						top: `${circle.y}px`,
 						width: `${circle.r * 1.5}px`,
 						height: `${circle.r * 1.5}px`,
 					})} 
-					class="circle"
-          @click=${this._onClick}
-				></div>`);
+          @click=${this._onClick}>
+				</div>`);
 
-    return html`<div class="container ${this.darkmode ? "dark": "light"}">
-      ${circlesHtml}
-    </div>`
+    return html`
+			<div class="dot-container">
+      	${circlesHtml}
+    	</div>`;
 	}
 }

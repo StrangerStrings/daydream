@@ -1,6 +1,6 @@
-import { css, customElement, html, internalProperty, LitElement, property } from "lit-element";
-import { defaultStyles } from "../defaultStyles";
-import { inputStyles } from "../inputStyles";
+import { css, customElement, html, LitElement, property } from "lit-element";
+import { defaultStyles } from "../styles/defaultStyles";
+import { inputStyles } from "../styles/inputStyles";
 
 /** Input for a openai api key */
 @customElement("api-key-input")

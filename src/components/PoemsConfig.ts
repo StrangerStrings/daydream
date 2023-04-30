@@ -1,6 +1,7 @@
-import { css, customElement, html, internalProperty, LitElement, property } from "lit-element";
-import { defaultStyles } from "../defaultStyles";
-import { inputStyles } from "../inputStyles";
+import { css, customElement, html, LitElement, property } from "lit-element";
+import { defaultStyles } from "../styles/defaultStyles";
+import { inputStyles } from "../styles/inputStyles";
+import { darkStyles } from "../styles/darkStyles";
 
 export type PoemConfig = {
 	seed: string;
@@ -14,6 +15,7 @@ export class PoemsConfig extends LitElement{
 	static styles = [
 		defaultStyles,
 		inputStyles,
+		darkStyles,
 		css`
 			:host {
 				display: flex;
